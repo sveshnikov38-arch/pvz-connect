@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПВЗ Connect — Система отчетности</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        body {
+            background: #f8fafc;
+        }
+        
+        .sidebar {
+            background: #1e293b;
+            min-height: 100vh;
+        }
+        
+        .nav-item {
+            color: #94a3b8;
+            padding: 12px 20px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: #334155;
+            color: #fff;
+        }
+        
+        .card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+        
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .badge-wb { background: #7B2D8E; color: #fff; }
+        .badge-ozon { background: #005BFF; color: #fff; }
+        .badge-ym { background: #F5C518; color: #1a1a1a; }
+        
+        .table-header {
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .table-header th {
+            padding: 14px 16px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .table-row {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        
+        .table-row:hover {
+            background: #f8fafc;
+        }
+        
+        .table-row td {
+            padding: 14px 16px;
+            color: #334155;
+            font-size: 14px;
+        }
+        
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .table-container::-webkit-scrollbar { width: 6px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f5f9; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: #fff;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background: #fff;
+            border-radius: 16px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .manager-indicator {
+            width: 4px;
+            border-radius: 2px;
+        }
+        
+        .manager-1-indicator { background: #3b82f6; }
+        .manager-2-indicator { background: #f59e0b; }
+        
+        .filter-select {
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .date-input {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+            cursor: pointer;
+        }
+        
+        .date-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 220px;
+        }
+        
+        .table-info {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        .status-connecting { background: #f59e0b; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .config-banner {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="flex">
+        <!-- Sidebar -->
+        <div class="sidebar w-64 p-6 flex-shrink-0 hidden lg:block">
+            <div class="mb-10">
+                <h1 class="text-xl font-bold text-white">ПВЗ Connect</h1>
+                <p class="text-slate-400 text-sm mt-1">Система отчетности</p>
+                <div class="mt-3 flex items-center text-sm" id="connectionStatus">
+                    <span class="status-indicator status-connecting"></span>
+                    <span class="text-slate-400">Подключение...</span>
+                </div>
+            </div>
+            
+            <nav class="space-y-2">
+                <div class="nav-item active flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Дашборд
+                </div>
+                <div class="nav-item flex items-center gap-3" onclick="openManagersModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    Менеджеры
+                </div>
+                <div class="nav-item flex items-center gap-3" onclick="openConfigModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Настройка БД
+                </div>
+            </nav>
+            
+            <div class="mt-10 pt-6 border-t border-slate-700">
+                <p class="text-slate-500 text-xs">Маркетплейсы</p>
+                <div class="mt-3 space-y-2">
+                    <div class="flex items-center gap-2 text-slate-300 text-sm">
+                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                        Wildberries
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-300 text-sm">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        OZON
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-300 text-sm">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                        Яндекс Маркет
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 p-6 lg:p-8">
+            <!-- Config Banner (показывается если нет настроек Firebase) -->
+            <div id="configBanner" class="config-banner hidden">
+                <div class="flex items-start gap-4">
+                    <div class="text-3xl">⚙️</div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-amber-900 text-lg">Настройте базу данных</h3>
+                        <p class="text-amber-800 mt-1">Для совместной работы нужно подключить Firebase. Данные будут синхронизироваться между всеми участниками в реальном времени.</p>
+                        <button onclick="openConfigModal()" class="mt-3 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-medium transition">
+                            Настроить подключение
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Header -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Отчетность подключений</h2>
+                    <p class="text-slate-500 mt-1">Статистика пунктов выдачи заказов</p>
+                </div>
+                <button onclick="openAddModal()" class="btn btn-success flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Новое подключение
+                </button>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">Всего точек</p>
+                    <p class="text-2xl font-bold text-slate-800 mt-1" id="statTotal">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">Wildberries</p>
+                    <p class="text-2xl font-bold text-purple-600 mt-1" id="statWB">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">OZON</p>
+                    <p class="text-2xl font-bold text-blue-600 mt-1" id="statOzon">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">Яндекс Маркет</p>
+                    <p class="text-2xl font-bold text-yellow-600 mt-1" id="statYM">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">Абон. плата/мес</p>
+                    <p class="text-xl font-bold text-green-600 mt-1" id="statRevenue">0 ₽</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-slate-500 text-sm">Сумма инсталлов</p>
+                    <p class="text-xl font-bold text-orange-600 mt-1" id="statInstall">0 ₽</p>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="card p-4 mb-6">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Менеджер</label>
+                        <select id="filterManager" onchange="applyFilters()" class="filter-select">
+                            <option value="all">Все менеджеры</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Маркетплейс</label>
+                        <select id="filterMarketplace" onchange="applyFilters()" class="filter-select">
+                            <option value="all">Все</option>
+                            <option value="Wildberries">Wildberries</option>
+                            <option value="OZON">OZON</option>
+                            <option value="Яндекс Маркет">Яндекс Маркет</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Период</label>
+                        <select id="filterPeriod" onchange="handlePeriodChange()" class="filter-select">
+                            <option value="all">Всё время</option>
+                            <option value="week">Последняя неделя</option>
+                            <option value="month">Последний месяц</option>
+                            <option value="quarter">Последний квартал</option>
+                            <option value="year">Последний год</option>
+                            <option value="custom">Свой период...</option>
+                        </select>
+                    </div>
+                    <div id="customPeriodBlock" class="hidden flex items-end gap-2">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">С</label>
+                            <input type="date" id="filterDateFrom" onchange="applyFilters()" class="date-input">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">По</label>
+                            <input type="date" id="filterDateTo" onchange="applyFilters()" class="date-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Тариф</label>
+                        <select id="filterTariff" onchange="applyFilters()" class="filter-select">
+                            <option value="all">Все тарифы</option>
+                            <option value="10 Мбит/сек">10 Мбит/сек</option>
+                            <option value="20 Мбит/сек">20 Мбит/сек</option>
+                            <option value="other">Другие</option>
+                        </select>
+                    </div>
+                    <button onclick="resetFilters()" class="btn btn-secondary text-sm py-2 px-3">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Manager Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="card p-5 flex gap-4">
+                    <div class="manager-indicator manager-1-indicator"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-slate-800" id="manager1Name">Менеджер 1</h3>
+                                <p class="text-slate-500 text-sm">Менеджер по подключениям</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-2xl font-bold text-slate-800" id="m1Total">0</p>
+                                <p class="text-xs text-slate-500">Точек</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-green-600" id="m1Revenue">0 ₽</p>
+                                <p class="text-xs text-slate-500">Абон.</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-orange-600" id="m1Install">0 ₽</p>
+                                <p class="text-xs text-slate-500">Инсталл</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-5 flex gap-4">
+                    <div class="manager-indicator manager-2-indicator"></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-slate-800" id="manager2Name">Менеджер 2</h3>
+                                <p class="text-slate-500 text-sm">Менеджер по подключениям</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-2xl font-bold text-slate-800" id="m2Total">0</p>
+                                <p class="text-xs text-slate-500">Точек</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-green-600" id="m2Revenue">0 ₽</p>
+                                <p class="text-xs text-slate-500">Абон.</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-orange-600" id="m2Install">0 ₽</p>
+                                <p class="text-xs text-slate-500">Инсталл</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="card p-5">
+                    <h4 class="font-semibold text-slate-800 mb-4">По маркетплейсам</h4>
+                    <div class="chart-container">
+                        <canvas id="chartMarketplace"></canvas>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold text-slate-800 mb-4">Сравнение менеджеров</h4>
+                    <div class="chart-container">
+                        <canvas id="chartManagers"></canvas>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <h4 class="font-semibold text-slate-800 mb-4">По тарифам</h4>
+                    <div class="chart-container">
+                        <canvas id="chartTariffs"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manager Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <h4 class="font-semibold text-slate-800" id="chart1Title">Менеджер 1 — детализация</h4>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartManager1"></canvas>
+                    </div>
+                </div>
+                <div class="card p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                        <h4 class="font-semibold text-slate-800" id="chart2Title">Менеджер 2 — детализация</h4>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chartManager2"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Table -->
+            <div class="card">
+                <div class="p-5 border-b border-slate-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                        <h3 class="font-semibold text-slate-800">Реестр подключений</h3>
+                        <p class="text-sm text-slate-500 mt-1" id="tableSubtitle">Все подключенные пункты выдачи</p>
+                    </div>
+                    <button onclick="exportCSV()" class="btn btn-secondary flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Экспорт в Excel (CSV)
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="w-full">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="text-left">Менеджер</th>
+                                <th class="text-left">ID клиента</th>
+                                <th class="text-left">Маркетплейс</th>
+                                <th class="text-left">Дата</th>
+                                <th class="text-left">Адрес ПВЗ</th>
+                                <th class="text-center">Тариф</th>
+                                <th class="text-right">Абон. плата</th>
+                                <th class="text-right">Инсталл</th>
+                                <th class="text-center w-12"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="table-info flex justify-between items-center">
+                    <span id="tableInfo">Показано 0 записей</span>
+                    <span id="tableTotals"></span>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center mt-8 text-slate-400 text-sm">
+                ПВЗ Connect — Система управления подключениями © 2024
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Modal -->
+    <div id="addModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="modal-content p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Новое подключение</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Менеджер</label>
+                        <select id="inputManager" class="input-field"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Маркетплейс</label>
+                        <select id="inputMarketplace" class="input-field">
+                            <option value="Wildberries">Wildberries</option>
+                            <option value="OZON">OZON</option>
+                            <option value="Яндекс Маркет">Яндекс Маркет</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ID клиента</label>
+                    <input type="text" id="inputClientId" class="input-field" placeholder="WB-2024-001">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Дата подключения</label>
+                    <input type="date" id="inputDate" class="input-field">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Адрес ПВЗ</label>
+                    <input type="text" id="inputAddress" class="input-field" placeholder="г. Москва, ул. Примерная, д. 1">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Тариф</label>
+                    <select id="inputTariff" onchange="updateTariffUI()" class="input-field">
+                        <option value="10 Мбит/сек" data-price="2500">10 Мбит/сек — 2 500 ₽/мес</option>
+                        <option value="20 Мбит/сек" data-price="3500">20 Мбит/сек — 3 500 ₽/мес</option>
+                        <option value="custom">Свой тариф</option>
+                    </select>
+                </div>
+                
+                <div id="customTariffBlock" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <p class="text-sm font-medium text-slate-700 mb-3">Параметры своего тарифа</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Название</label>
+                            <input type="text" id="inputCustomTariffName" class="input-field" placeholder="50 Мбит/сек">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 mb-1">Абон. плата (₽)</label>
+                            <input type="number" id="inputCustomPrice" class="input-field" value="5000" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Стоимость инсталла (₽)</label>
+                    <input type="number" id="inputInstall" class="input-field" value="5000" min="0">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeAddModal()" class="btn btn-secondary">Отмена</button>
+                <button onclick="addRecord()" class="btn btn-primary">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Managers Modal -->
+    <div id="managersModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="modal-content p-6" style="max-width: 400px;">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Настройка менеджеров</h3>
+                <button onclick="closeManagersModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Менеджер 1</label>
+                    <div class="flex gap-2">
+                        <div class="w-3 rounded bg-blue-500"></div>
+                        <input type="text" id="manager1Input" class="input-field flex-1">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Менеджер 2</label>
+                    <div class="flex gap-2">
+                        <div class="w-3 rounded bg-amber-500"></div>
+                        <input type="text" id="manager2Input" class="input-field flex-1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeManagersModal()" class="btn btn-secondary">Отмена</button>
+                <button onclick="saveManagers()" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div id="configModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="modal-content p-6" style="max-width: 600px;">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-slate-800">⚙️ Настройка базы данных Firebase</h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p class="text-blue-800 text-sm">
+                    <strong>Как получить эти данные:</strong><br>
+                    1. Перейдите на <a href="https://console.firebase.google.com" target="_blank" class="underline">console.firebase.google.com</a><br>
+                    2. Создайте проект (или откройте существующий)<br>
+                    3. Перейдите в Realtime Database → Создать базу данных<br>
+                    4. Выберите режим "тестовый" для начала<br>
+                    5. Перейдите в ⚙️ Настройки проекта → Общие<br>
+                    6. Прокрутите вниз до "Ваши приложения" → Веб (&lt;/&gt;)<br>
+                    7. Скопируйте значения из firebaseConfig
+                </p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">API Key</label>
+                    <input type="text" id="configApiKey" class="input-field font-mono text-sm" placeholder="AIzaSy...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Auth Domain</label>
+                    <input type="text" id="configAuthDomain" class="input-field font-mono text-sm" placeholder="your-project.firebaseapp.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Database URL</label>
+                    <input type="text" id="configDatabaseURL" class="input-field font-mono text-sm" placeholder="https://your-project-default-rtdb.firebaseio.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Project ID</label>
+                    <input type="text" id="configProjectId" class="input-field font-mono text-sm" placeholder="your-project-id">
+                </div>
+            </div>
+            
+            <div class="flex justify-between gap-3 mt-6">
+                <button onclick="clearConfig()" class="btn btn-secondary text-red-600">Сбросить</button>
+                <div class="flex gap-3">
+                    <button onclick="closeConfigModal()" class="btn btn-secondary">Отмена</button>
+                    <button onclick="saveConfig()" class="btn btn-primary">Подключить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase
+        let db = null;
+        let firebaseApp = null;
+        let isConnected = false;
+
+        // Менеджеры
+        let managers = {
+            manager1: "Иванов Алексей",
+            manager2: "Петрова Мария"
+        };
+
+        // Данные
+        let data = [];
+        let filteredData = [];
+        let charts = {};
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('inputDate').valueAsDate = new Date();
+            
+            const today = new Date();
+            const yearAgo = new Date();
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+            document.getElementById('filterDateTo').valueAsDate = today;
+            document.getElementById('filterDateFrom').valueAsDate = yearAgo;
+            
+            // Загрузить конфигурацию Firebase из localStorage
+            loadConfig();
+            
+            updateManagerUI();
+            initCharts();
+        });
+
+        // ===== FIREBASE FUNCTIONS =====
+        
+        function loadConfig() {
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                initFirebase(config);
+            } else {
+                document.getElementById('configBanner').classList.remove('hidden');
+                updateConnectionStatus('offline');
+                loadLocalData();
+            }
+        }
+        
+        function initFirebase(config) {
+            try {
+                updateConnectionStatus('connecting');
+                
+                if (firebaseApp) {
+                    firebaseApp.delete();
+                }
+                
+                firebaseApp = firebase.initializeApp(config);
+                db = firebase.database();
+                
+                // Слушатель подключения
+                db.ref('.info/connected').on('value', (snap) => {
+                    if (snap.val() === true) {
+                        isConnected = true;
+                        updateConnectionStatus('online');
+                    } else {
+                        isConnected = false;
+                        updateConnectionStatus('offline');
+                    }
+                });
+                
+                // Загрузка данных в реальном времени
+                db.ref('records').on('value', (snapshot) => {
+                    data = [];
+                    snapshot.forEach((child) => {
+                        data.push({ id: child.key, ...child.val() });
+                    });
+                    applyFilters();
+                });
+                
+                // Загрузка менеджеров
+                db.ref('managers').on('value', (snapshot) => {
+                    if (snapshot.val()) {
+                        managers = snapshot.val();
+                        updateManagerUI();
+                    }
+                });
+                
+                document.getElementById('configBanner').classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Firebase init error:', error);
+                updateConnectionStatus('offline');
+                alert('Ошибка подключения к Firebase: ' + error.message);
+            }
+        }
+        
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (status === 'online') {
+                statusEl.innerHTML = '<span class="status-indicator status-online"></span><span class="text-green-400">Онлайн</span>';
+            } else if (status === 'connecting') {
+                statusEl.innerHTML = '<span class="status-indicator status-connecting"></span><span class="text-slate-400">Подключение...</span>';
+            } else {
+                statusEl.innerHTML = '<span class="status-indicator status-offline"></span><span class="text-red-400">Офлайн</span>';
+            }
+        }
+        
+        function loadLocalData() {
+            // Демо-данные для локального режима
+            data = [
+                { id: '1', manager: "manager1", clientId: "WB-2024-001", marketplace: "Wildberries", date: "2024-01-15", address: "г. Москва, ул. Ленина, д. 10", tariff: "10 Мбит/сек", price: 2500, install: 5000 },
+                { id: '2', manager: "manager1", clientId: "OZ-2024-002", marketplace: "OZON", date: "2024-01-20", address: "г. Москва, ул. Пушкина, д. 25", tariff: "20 Мбит/сек", price: 3500, install: 7000 },
+                { id: '3', manager: "manager2", clientId: "WB-2024-003", marketplace: "Wildberries", date: "2024-02-01", address: "г. Санкт-Петербург, Невский пр., д. 100", tariff: "10 Мбит/сек", price: 2500, install: 5000 },
+                { id: '4', manager: "manager1", clientId: "YM-2024-004", marketplace: "Яндекс Маркет", date: "2024-02-10", address: "г. Москва, ул. Тверская, д. 15", tariff: "20 Мбит/сек", price: 3500, install: 6000 },
+                { id: '5', manager: "manager2", clientId: "OZ-2024-005", marketplace: "OZON", date: "2024-02-15", address: "г. Казань, ул. Баумана, д. 50", tariff: "10 Мбит/сек", price: 2500, install: 4500 },
+                { id: '6', manager: "manager2", clientId: "WB-2024-006", marketplace: "Wildberries", date: "2024-02-20", address: "г. Новосибирск, Красный пр., д. 80", tariff: "20 Мбит/сек", price: 3500, install: 8000 },
+            ];
+            applyFilters();
+        }
+        
+        function openConfigModal() {
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                document.getElementById('configApiKey').value = config.apiKey || '';
+                document.getElementById('configAuthDomain').value = config.authDomain || '';
+                document.getElementById('configDatabaseURL').value = config.databaseURL || '';
+                document.getElementById('configProjectId').value = config.projectId || '';
+            }
+            document.getElementById('configModal').classList.remove('hidden');
+            document.getElementById('configModal').classList.add('flex');
+        }
+        
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+            document.getElementById('configModal').classList.remove('flex');
+        }
+        
+        function saveConfig() {
+            const config = {
+                apiKey: document.getElementById('configApiKey').value.trim(),
+                authDomain: document.getElementById('configAuthDomain').value.trim(),
+                databaseURL: document.getElementById('configDatabaseURL').value.trim(),
+                projectId: document.getElementById('configProjectId').value.trim()
+            };
+            
+            if (!config.apiKey || !config.databaseURL) {
+                alert('Заполните обязательные поля: API Key и Database URL');
+                return;
+            }
+            
+            localStorage.setItem('firebaseConfig', JSON.stringify(config));
+            initFirebase(config);
+            closeConfigModal();
+        }
+        
+        function clearConfig() {
+            if (confirm('Сбросить настройки подключения? Данные в облаке сохранятся.')) {
+                localStorage.removeItem('firebaseConfig');
+                location.reload();
+            }
+        }
+
+        // ===== MANAGERS =====
+        
+        function updateManagerUI() {
+            document.getElementById('manager1Name').textContent = managers.manager1;
+            document.getElementById('manager2Name').textContent = managers.manager2;
+            document.getElementById('chart1Title').textContent = managers.manager1 + ' — детализация';
+            document.getElementById('chart2Title').textContent = managers.manager2 + ' — детализация';
+            
+            const filterManager = document.getElementById('filterManager');
+            filterManager.innerHTML = `
+                <option value="all">Все менеджеры</option>
+                <option value="manager1">${managers.manager1}</option>
+                <option value="manager2">${managers.manager2}</option>
+            `;
+            
+            const inputManager = document.getElementById('inputManager');
+            inputManager.innerHTML = `
+                <option value="manager1">${managers.manager1}</option>
+                <option value="manager2">${managers.manager2}</option>
+            `;
+        }
+
+        function openManagersModal() {
+            document.getElementById('manager1Input').value = managers.manager1;
+            document.getElementById('manager2Input').value = managers.manager2;
+            document.getElementById('managersModal').classList.remove('hidden');
+            document.getElementById('managersModal').classList.add('flex');
+        }
+
+        function closeManagersModal() {
+            document.getElementById('managersModal').classList.add('hidden');
+            document.getElementById('managersModal').classList.remove('flex');
+        }
+
+        function saveManagers() {
+            const m1 = document.getElementById('manager1Input').value.trim();
+            const m2 = document.getElementById('manager2Input').value.trim();
+            
+            if (!m1 || !m2) {
+                alert('Введите имена обоих менеджеров');
+                return;
+            }
+            
+            managers.manager1 = m1;
+            managers.manager2 = m2;
+            
+            // Сохранить в Firebase
+            if (db && isConnected) {
+                db.ref('managers').set(managers);
+            }
+            
+            updateManagerUI();
+            renderTable();
+            updateCharts();
+            closeManagersModal();
+        }
+
+        // ===== DATA FUNCTIONS =====
+        
+        function getMarketplaceBadge(mp) {
+            const badges = {
+                'Wildberries': 'badge-wb',
+                'OZON': 'badge-ozon',
+                'Яндекс Маркет': 'badge-ym'
+            };
+            return `<span class="${badges[mp]} px-2 py-1 rounded text-xs font-medium">${mp}</span>`;
+        }
+
+        function getManagerIndicator(manager) {
+            return manager === 'manager1' ? 'manager-1-indicator' : 'manager-2-indicator';
+        }
+
+        function getManagerName(managerId) {
+            return managers[managerId] || managerId;
+        }
+
+        function handlePeriodChange() {
+            const period = document.getElementById('filterPeriod').value;
+            const customBlock = document.getElementById('customPeriodBlock');
+            
+            if (period === 'custom') {
+                customBlock.classList.remove('hidden');
+                customBlock.classList.add('flex');
+            } else {
+                customBlock.classList.add('hidden');
+                customBlock.classList.remove('flex');
+            }
+            
+            applyFilters();
+        }
+
+        function resetFilters() {
+            document.getElementById('filterManager').value = 'all';
+            document.getElementById('filterMarketplace').value = 'all';
+            document.getElementById('filterPeriod').value = 'all';
+            document.getElementById('filterTariff').value = 'all';
+            document.getElementById('customPeriodBlock').classList.add('hidden');
+            document.getElementById('customPeriodBlock').classList.remove('flex');
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const manager = document.getElementById('filterManager').value;
+            const marketplace = document.getElementById('filterMarketplace').value;
+            const period = document.getElementById('filterPeriod').value;
+            const tariff = document.getElementById('filterTariff').value;
+
+            filteredData = data.filter(item => {
+                if (manager !== 'all' && item.manager !== manager) return false;
+                if (marketplace !== 'all' && item.marketplace !== marketplace) return false;
+                
+                if (tariff !== 'all') {
+                    if (tariff === 'other') {
+                        if (item.tariff === '10 Мбит/сек' || item.tariff === '20 Мбит/сек') return false;
+                    } else {
+                        if (item.tariff !== tariff) return false;
+                    }
+                }
+                
+                const itemDate = new Date(item.date);
+                const now = new Date();
+                
+                if (period === 'custom') {
+                    const fromDate = document.getElementById('filterDateFrom').value;
+                    const toDate = document.getElementById('filterDateTo').value;
+                    
+                    if (fromDate && itemDate < new Date(fromDate)) return false;
+                    if (toDate) {
+                        const toDateEnd = new Date(toDate);
+                        toDateEnd.setHours(23, 59, 59, 999);
+                        if (itemDate > toDateEnd) return false;
+                    }
+                } else if (period !== 'all') {
+                    let startDate = new Date();
+                    
+                    if (period === 'week') startDate.setDate(now.getDate() - 7);
+                    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+                    else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
+                    else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
+                    
+                    if (itemDate < startDate) return false;
+                }
+                
+                return true;
+            });
+
+            renderTable();
+            updateStats();
+            updateCharts();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = filteredData.map(item => `
+                <tr class="table-row">
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <div class="w-1 h-8 rounded ${getManagerIndicator(item.manager)}"></div>
+                            <span class="font-medium">${getManagerName(item.manager)}</span>
+                        </div>
+                    </td>
+                    <td><span class="font-mono text-slate-600">${item.clientId}</span></td>
+                    <td>${getMarketplaceBadge(item.marketplace)}</td>
+                    <td class="text-slate-500">${formatDate(item.date)}</td>
+                    <td class="text-slate-600 max-w-xs truncate" title="${item.address}">${item.address}</td>
+                    <td class="text-center"><span class="bg-slate-100 px-2 py-1 rounded text-sm">${item.tariff}</span></td>
+                    <td class="text-right font-medium text-green-600">${item.price.toLocaleString()} ₽</td>
+                    <td class="text-right font-medium text-orange-600">${item.install.toLocaleString()} ₽</td>
+                    <td class="text-center">
+                        <button onclick="deleteRecord('${item.id}')" class="text-slate-400 hover:text-red-500 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            const totalRecords = data.length;
+            const shownRecords = filteredData.length;
+            document.getElementById('tableInfo').textContent = 
+                shownRecords === totalRecords 
+                    ? `Показано ${shownRecords} записей` 
+                    : `Показано ${shownRecords} из ${totalRecords} записей`;
+            
+            const totalPrice = filteredData.reduce((s, d) => s + d.price, 0);
+            const totalInstall = filteredData.reduce((s, d) => s + d.install, 0);
+            document.getElementById('tableTotals').textContent = 
+                `Итого: ${totalPrice.toLocaleString()} ₽/мес, инсталл: ${totalInstall.toLocaleString()} ₽`;
+            
+            document.getElementById('tableSubtitle').textContent = 
+                `Всего ${totalRecords} подключенных пунктов выдачи`;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ru-RU');
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').textContent = filteredData.length;
+            document.getElementById('statWB').textContent = filteredData.filter(d => d.marketplace === 'Wildberries').length;
+            document.getElementById('statOzon').textContent = filteredData.filter(d => d.marketplace === 'OZON').length;
+            document.getElementById('statYM').textContent = filteredData.filter(d => d.marketplace === 'Яндекс Маркет').length;
+            document.getElementById('statRevenue').textContent = filteredData.reduce((s, d) => s + d.price, 0).toLocaleString() + ' ₽';
+            document.getElementById('statInstall').textContent = filteredData.reduce((s, d) => s + d.install, 0).toLocaleString() + ' ₽';
+
+            const m1Data = filteredData.filter(d => d.manager === 'manager1');
+            document.getElementById('m1Total').textContent = m1Data.length;
+            document.getElementById('m1Revenue').textContent = m1Data.reduce((s, d) => s + d.price, 0).toLocaleString() + ' ₽';
+            document.getElementById('m1Install').textContent = m1Data.reduce((s, d) => s + d.install, 0).toLocaleString() + ' ₽';
+
+            const m2Data = filteredData.filter(d => d.manager === 'manager2');
+            document.getElementById('m2Total').textContent = m2Data.length;
+            document.getElementById('m2Revenue').textContent = m2Data.reduce((s, d) => s + d.price, 0).toLocaleString() + ' ₽';
+            document.getElementById('m2Install').textContent = m2Data.reduce((s, d) => s + d.install, 0).toLocaleString() + ' ₽';
+        }
+
+        // ===== CHARTS =====
+        
+        function initCharts() {
+            Chart.defaults.font.family = 'Inter';
+            
+            charts.marketplace = new Chart(document.getElementById('chartMarketplace'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Wildberries', 'OZON', 'Яндекс Маркет'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#7B2D8E', '#005BFF', '#F5C518'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true, pointStyle: 'circle' } } 
+                    },
+                    cutout: '60%'
+                }
+            });
+
+            charts.managers = new Chart(document.getElementById('chartManagers'), {
+                type: 'bar',
+                data: {
+                    labels: ['Точек', 'Абон. (тыс.)', 'Инсталл (тыс.)'],
+                    datasets: [
+                        { label: managers.manager1, data: [0, 0, 0], backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: managers.manager2, data: [0, 0, 0], backgroundColor: '#f59e0b', borderRadius: 4 }
+                    ]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true, pointStyle: 'circle' } } },
+                    scales: { 
+                        x: { grid: { display: false } }, 
+                        y: { grid: { color: '#f1f5f9' }, border: { display: false } } 
+                    }
+                }
+            });
+
+            charts.tariffs = new Chart(document.getElementById('chartTariffs'), {
+                type: 'pie',
+                data: {
+                    labels: ['10 Мбит/сек', '20 Мбит/сек', 'Другие'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#8b5cf6', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true, pointStyle: 'circle' } } } 
+                }
+            });
+
+            charts.manager1 = new Chart(document.getElementById('chartManager1'), {
+                type: 'bar',
+                data: {
+                    labels: ['Wildberries', 'OZON', 'Яндекс Маркет'],
+                    datasets: [{
+                        label: 'Подключения',
+                        data: [0, 0, 0],
+                        backgroundColor: ['#7B2D8E', '#005BFF', '#F5C518'],
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', 
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { grid: { color: '#f1f5f9' }, border: { display: false } }, 
+                        y: { grid: { display: false } } 
+                    }
+                }
+            });
+
+            charts.manager2 = new Chart(document.getElementById('chartManager2'), {
+                type: 'bar',
+                data: {
+                    labels: ['Wildberries', 'OZON', 'Яндекс Маркет'],
+                    datasets: [{
+                        label: 'Подключения',
+                        data: [0, 0, 0],
+                        backgroundColor: ['#7B2D8E', '#005BFF', '#F5C518'],
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', 
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { grid: { color: '#f1f5f9' }, border: { display: false } }, 
+                        y: { grid: { display: false } } 
+                    }
+                }
+            });
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            const wb = filteredData.filter(d => d.marketplace === 'Wildberries').length;
+            const oz = filteredData.filter(d => d.marketplace === 'OZON').length;
+            const ym = filteredData.filter(d => d.marketplace === 'Яндекс Маркет').length;
+
+            charts.marketplace.data.datasets[0].data = [wb, oz, ym];
+            charts.marketplace.update();
+
+            const m1 = filteredData.filter(d => d.manager === 'manager1');
+            const m2 = filteredData.filter(d => d.manager === 'manager2');
+
+            charts.managers.data.datasets[0].label = managers.manager1;
+            charts.managers.data.datasets[1].label = managers.manager2;
+            charts.managers.data.datasets[0].data = [
+                m1.length,
+                m1.reduce((s, d) => s + d.price, 0) / 1000,
+                m1.reduce((s, d) => s + d.install, 0) / 1000
+            ];
+            charts.managers.data.datasets[1].data = [
+                m2.length,
+                m2.reduce((s, d) => s + d.price, 0) / 1000,
+                m2.reduce((s, d) => s + d.install, 0) / 1000
+            ];
+            charts.managers.update();
+
+            const t10 = filteredData.filter(d => d.tariff === '10 Мбит/сек').length;
+            const t20 = filteredData.filter(d => d.tariff === '20 Мбит/сек').length;
+            const tOther = filteredData.filter(d => d.tariff !== '10 Мбит/сек' && d.tariff !== '20 Мбит/сек').length;
+            charts.tariffs.data.datasets[0].data = [t10, t20, tOther];
+            charts.tariffs.update();
+
+            charts.manager1.data.datasets[0].data = [
+                m1.filter(d => d.marketplace === 'Wildberries').length,
+                m1.filter(d => d.marketplace === 'OZON').length,
+                m1.filter(d => d.marketplace === 'Яндекс Маркет').length
+            ];
+            charts.manager1.update();
+
+            charts.manager2.data.datasets[0].data = [
+                m2.filter(d => d.marketplace === 'Wildberries').length,
+                m2.filter(d => d.marketplace === 'OZON').length,
+                m2.filter(d => d.marketplace === 'Яндекс Маркет').length
+            ];
+            charts.manager2.update();
+        }
+
+        // ===== MODALS & CRUD =====
+        
+        function openAddModal() {
+            document.getElementById('addModal').classList.remove('hidden');
+            document.getElementById('addModal').classList.add('flex');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+            document.getElementById('addModal').classList.remove('flex');
+        }
+
+        function updateTariffUI() {
+            const tariffSelect = document.getElementById('inputTariff');
+            const customBlock = document.getElementById('customTariffBlock');
+            
+            if (tariffSelect.value === 'custom') {
+                customBlock.classList.remove('hidden');
+            } else {
+                customBlock.classList.add('hidden');
+            }
+        }
+
+        function addRecord() {
+            const manager = document.getElementById('inputManager').value;
+            const marketplace = document.getElementById('inputMarketplace').value;
+            const clientId = document.getElementById('inputClientId').value;
+            const date = document.getElementById('inputDate').value;
+            const address = document.getElementById('inputAddress').value;
+            const tariffSelect = document.getElementById('inputTariff').value;
+            const install = parseInt(document.getElementById('inputInstall').value) || 0;
+            
+            let tariff, price;
+            
+            if (tariffSelect === 'custom') {
+                const customName = document.getElementById('inputCustomTariffName').value.trim();
+                const customPrice = parseInt(document.getElementById('inputCustomPrice').value) || 0;
+                
+                if (!customName) {
+                    alert('Укажите название тарифа');
+                    return;
+                }
+                
+                tariff = customName;
+                price = customPrice;
+            } else {
+                tariff = tariffSelect;
+                price = tariffSelect === '10 Мбит/сек' ? 2500 : 3500;
+            }
+
+            if (!clientId || !date || !address) {
+                alert('Заполните все обязательные поля');
+                return;
+            }
+
+            const newRecord = {
+                manager,
+                clientId,
+                marketplace,
+                date,
+                address,
+                tariff,
+                price,
+                install,
+                createdAt: Date.now()
+            };
+
+            // Сохранить в Firebase или локально
+            if (db && isConnected) {
+                db.ref('records').push(newRecord);
+            } else {
+                newRecord.id = 'local_' + Date.now();
+                data.push(newRecord);
+                applyFilters();
+            }
+
+            closeAddModal();
+
+            // Очистка формы
+            document.getElementById('inputClientId').value = '';
+            document.getElementById('inputAddress').value = '';
+            document.getElementById('inputInstall').value = '5000';
+            document.getElementById('inputTariff').value = '10 Мбит/сек';
+            document.getElementById('inputCustomTariffName').value = '';
+            document.getElementById('inputCustomPrice').value = '5000';
+            document.getElementById('customTariffBlock').classList.add('hidden');
+        }
+
+        function deleteRecord(id) {
+            if (confirm('Удалить это подключение?')) {
+                if (db && isConnected) {
+                    db.ref('records/' + id).remove();
+                } else {
+                    data = data.filter(d => d.id !== id);
+                    applyFilters();
+                }
+            }
+        }
+
+        function exportCSV() {
+            if (filteredData.length === 0) {
+                alert('Нет данных для экспорта');
+                return;
+            }
+            
+            const headers = ['Менеджер', 'ID клиента', 'Маркетплейс', 'Дата подключения', 'Адрес ПВЗ', 'Тариф', 'Абон. плата', 'Инсталл'];
+            const rows = filteredData.map(d => [
+                getManagerName(d.manager), 
+                d.clientId, 
+                d.marketplace, 
+                formatDate(d.date), 
+                '"' + d.address.replace(/"/g, '""') + '"', 
+                d.tariff, 
+                d.price, 
+                d.install
+            ]);
+
+            const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            
+            const today = new Date().toISOString().slice(0, 10);
+            link.download = `pvz_report_${today}.csv`;
+            link.click();
+            
+            URL.revokeObjectURL(link.href);
+        }
+    </script>
+</body>
+</html>
